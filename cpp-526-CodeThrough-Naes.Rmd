@@ -1,0 +1,294 @@
+---
+title: "Importing Data and Conversion of Data Types"
+author: "Tyler Naes"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: flatly
+    df_print: paged
+    highlight: tango
+    toc: yes
+    toc_float: yes
+---
+
+```{r include = FALSE}
+
+# SET GLOBAL KNITR OPTIONS
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE, 
+                      fig.width = 10, 
+                      fig.height = 8)
+
+
+
+# LOAD PACKAGES
+
+library(pander)
+library(kableExtra)
+library(dplyr)
+library(hablar)
+library(stringr)
+library(tidyverse)
+library(modelr)
+
+```
+
+<br>
+<br>
+
+# Introduction
+
+This code through explores how to find data frames for usage within the R environment. I had not experienced linking my own data from an online source directly to R markdown prior to this project. I wanted to challenge myself with the task and found that loading a CSV is only the beginning of the process and actually quite straightforward. I had fun researching and cleaning up my data for use. This is some real world application of very basic skills that will come in handy down the road.
+
+<br>
+
+## Content Overview
+
+I'll explain and demonstrate by coding examples how to convert a CSV file sourced online into useful data types. First, a data source will be indicated. Then, an overview of the data will be achieved. Next, data will be converted to useful data types. Finally, after data types are converted, basic analysis and visualization occurs.
+
+<br>
+
+## Why You Should Care
+
+This topic is valuable because data conversion for usage within a programming language is an essential aspect of every programming language. While this code-through focuses on the R language, consider that Esat Ercek states "the process of changing data type of a value into another data type is referred to as data type conversion and also almost all programming languages include some type of data converting functions or functionality" (2019). In order to make data compatible with the necessary functions, processes must occur that change the data types. Learning what those processes are and how to utilize this vital skill is a necessity.
+
+<br>
+
+## Learning Objectives
+
+In general, you'll learn how to link to CSV data found online, load this data into R markdown, remove commas from columns in data, convert numbers to a math friendly data type, and prove the correct data type has been acquired by using mutate() for math between columns.
+
+<br>
+<br>
+
+# IMPORTING DATA & CONVERTING DATA TYPES
+
+Here, we'll show some essentials of IMPORTING DATA AND CONVERSION OF DATA TYPES.
+
+<br>
+
+## The Beginning
+
+I start with how to import data from an online CSV. The website I use for this example is data.world. This website allows the visitor to search for relevant data. In the search field I typed Tennessee. Then, I sorted based on newest data and found a dataset listed as 'Voting and registration data' which was shared by the U.S. Census Bureau. The data contains voter registration information exclusive to the 2016 and 2018 elections. Honing in, I selected for data based upon age in 2018. By using the download button, a visitor can choose a link for an R document, offering the link I added in the code chunk that follows.
+
+```{r}
+
+df2 <- read.csv("https://query.data.world/s/7htyf6nzrl2du4wb6jda4tnsvbqbp7?dws=00000", header=TRUE, stringsAsFactors=FALSE); 
+## Linking the data
+
+head(df2) ## Head function default shows six rows and all columns
+
+fivestates <- df2 %>%                                                                 ##Setting my data into a filtered object
+    filter(STATE %in% c("TENNESSEE","MISSOURI","ALABAMA","COLORADO","FLORIDA"),       ##Filtering in STATE by group (Circo)
+         Age != "Total")                                                              ##Filtering out Total Rows
+
+fivestates                                                                            ##Printing my object to verify and see
+```
+
+<br>
+
+```{r}
+## Here is code that will throw an ERROR due to numbers being in the CHR data type
+
+##fivestates %>%
+##   summarize(STATE, Age, Total.registered, Total.voted) %>%
+##   mutate(Total.nonvoters = Total.registered - Total.voted,
+##          Pct.nonvoters = Total.nonvoters / Total.registered)
+
+## The important part of the ERROR to consider is "! non-numeric argument to binary operator"
+
+## This means I'll need to convert data from CHR (string) to DBL (num) or INT (num)
+```
+
+
+<br>
+
+More specifically, the convert function which is in the hablar R package can be used for converting to useful data. Before manipulating the data itself, these inaccurate data types must be converted from the CHR type to the proper numeric type they belong to. 
+
+```{r}
+condf2 <- fivestates %>%                                        ##Naming my object, pulling filtered data
+  convert(int(Total.population,                                 ##Converting from CHR to INT
+              Total.citizen.population,
+              Total.registered,
+              Total.voted,
+              ),
+          dbl(Percent.registered..Total.,                       ##Converting from CHR to DBL
+              Margin.of.error,
+              Percent.registered..Citizen.,
+              Margin.of.error.1,
+              Percent.voted..Total.,
+              Margin.of.error.2,
+              Percent.voted..Citizen.,
+              Margin.of.error.3))
+
+condf2                                                          ##Printing new object to verify and see
+```
+
+<br>
+
+There is a problem with the conversion so I'll be continuing the data conversion process. Looking at the condf2 data I converted and printed, turning the dataset into INT has erased vital information! I'll try again, this time using only the DBL function to see if there is the same problem.
+
+```{r}
+
+condf3 <- fivestates %>%                                       ##Creating my object, pulling filtered data
+  convert(dbl(Total.population,                                ##Converting from CHR to DBL
+              Total.citizen.population,
+              Total.registered,
+              Total.voted,
+              Percent.registered..Total.,
+              Margin.of.error,
+              Percent.registered..Citizen.,
+              Margin.of.error.1,
+              Percent.voted..Total.,
+              Margin.of.error.2,
+              Percent.voted..Citizen.,
+              Margin.of.error.3))
+
+condf3                                                         ##Printing new object to verify and see
+
+```
+
+<br>
+
+This is a great example of real world trial and error. Unfortunately switching the conversion from INT to DBL did not fix the issue, however, research revealed how to remove commas from the dataset in order to prepared data prior to conversion, which should help. 
+
+<br>
+
+```{r}
+
+condf4 <- fivestates %>%
+  mutate(across(Total.population:Margin.of.error.3, ~as.numeric(str_remove(.x, ","))))
+  ## Technique for removal of commas from data pre-work for safe conversion of data type
+  ## This code framework was found on Stack Overflow in a message board, very useful
+
+condf5 <- condf4 %>%                           ## I am making a new object
+  convert(dbl(Total.population,                ## Convert changes CHR to DBL
+              Total.citizen.population,
+              Total.registered,
+              Total.voted,
+              Percent.registered..Total.,
+              Margin.of.error,
+              Percent.registered..Citizen.,
+              Margin.of.error.1,
+              Percent.voted..Total.,
+              Margin.of.error.2,
+              Percent.voted..Citizen.,
+              Margin.of.error.3))               
+
+condf5                                        ## Printing new object to verify and see
+```
+
+<br>
+
+Most notably, data conversion is valuable in allowing data to be used for various functions. I am plugging in a couple columns into a plot for visual data representation. This could have become roughly the same plot with or without the data type conversion.
+
+<br>
+
+```{r}
+
+
+condf6 <- condf4 %>%                                       ## Creating a new object with filtered data
+  convert(dbl(Total.population,                            ## Converting from CHR to DBL
+              Total.citizen.population,
+              Total.registered,
+              Total.voted,
+              Percent.registered..Total.,
+              Margin.of.error,
+              Percent.registered..Citizen.,
+              Margin.of.error.1,
+              Percent.voted..Total.,
+              Margin.of.error.2,
+              Percent.voted..Citizen.,
+              Margin.of.error.3)) 
+
+
+Five_votes <- ggplot(condf6, aes(Age, Percent.voted..Total.)) +  ## Creating new object, Using ggplot2
+  geom_point(aes(color=STATE), size = 4)                         ## Variables are Age and Percent.voted..Total.
+                                                                 ## Geom_point color code by STATE, increase point size
+
+print(Five_votes + theme(text = element_text(size = 15)) +       ## Personalizes ggplot and prints visualization
+        labs(title = "Five U.S. States' Voters in 2018", 
+             y = "Percentage Voters From Total Population", 
+             x = "Age Groups"))                       
+
+```
+
+<br>
+
+## Advanced Examples
+
+In order to create mutated columns using math, CHR needed to be converted to DBL or INT. CHR is a character string and will not compute as numbers would. Both the DBL and INT data types will signal to R that you are working with numbers to be treated accordingly.
+
+<br> 
+
+```{r}
+
+Nonvotefive <- condf5 %>%                                          ##Using my converted data
+  summarize(STATE, Age, Total.registered, Total.voted) %>%         ##Tabling summary columns
+  mutate(Total.nonvoters = Total.registered - Total.voted,         ##Mutating for nonvoters
+         Pct.nonvoters = Total.nonvoters / Total.registered)       ##Mutating for percentage
+
+Nonvotefive
+```
+
+<br>
+
+Having gone through all the trouble of converting to DBL from CHR, it is only right to continue with a advanced example that would only be possible with the mutated data. The following plot is the same five states, but shows percent of nonvoters from registered.
+
+<br>
+
+```{r}
+
+Five_nonvotes <- ggplot(Nonvotefive, aes(Age, Pct.nonvoters)) +       ## Creating new object, Using ggplot2
+  geom_point(aes(color=STATE), size = 4)                              ## Variables are Age and Pct.nonvoters
+                                                                      ## Color code by STATE, increase point size
+
+print(Five_nonvotes + theme(text = element_text(size = 15)) +         ## Personalizes ggplot and prints visualization
+        labs(title = "Five U.S. States' Voters in 2018", 
+             y = "Percentage Nonvoters From Registered", 
+             x = "Age Groups"))
+
+```
+
+<br>
+
+## Closing Exposition
+
+CSV sourcing, data type conversion, data wrangling, and basic visualization are based/expanded on the theory/work/extension of Hadley Wickham and Garrett Grolemund in their computer programming text R for Data Science. Data type conversion is also an extension of lessons taught via webpage by David Sjobreg. Foundational skills picked up during this Data Science course, CPP526, also came into play at multiple points in this code-through. 
+
+<br>
+
+<br>
+
+<br>
+
+# Further Resources
+
+Learn more about Removing Commas from Data Frame Columns and Customizing in GGplot2 with the following:
+
+<br>
+
+* Stack Overflow [How to Remove Commas from Dataset Columns](https://stackoverflow.com/questions/72892683/replace-comma-to-convert-to-numeric-and-introduce-na-if-there-is-character-entry)
+
+* Using GGplot Basics [Customizing Your GGplot](https://environmentalcomputing.net/graphics/ggplot/ggplot-labels/)
+
+* More GGplot Basics (Stack Overflow) [Adding a Theme to Ggplot](https://stackoverflow.com/questions/14363804/size-of-labels-for-x-axis-and-y-axis-ggplot-in-r)
+
+<br>
+<br>
+
+# Works Cited
+
+This code through references and cites the following sources:
+
+<br>
+
+* U.S. Census Bureau (2020). data.world. [Voting and Registration Data for U.S. Census Bureau (Tennessee)](https://data.world/uscensusbureau/voting-and-registration-data)
+
+* Sjobreg, David (2023). cran.r-project.org. [Convert Funtion](https://cran.r-project.org/web/packages/hablar/vignettes/convert.html)
+
+* Ercek, Esat (2019). SQLShack.com. [SQL Convert Function](https://www.sqlshack.com/sql-convert-function/)
+
+<br>
